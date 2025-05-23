@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <h1>Rosbridge demo</h1>
+
+    <p>To see this page update:</p>
+    <ul>
+      <li>Run a Rosbridge connection at <code>ws://localhost:9090</code></li>
+      <li>Start publishing ROS messages to <code>/my_topic</code></li>
+    </ul>
+
+    <p>View the full tutorial at <a href="https://foxglove.dev/blog/using-rosbridge-with-ros1" target="_blank">Using Rosbridge with ROS 1</a> or <a href="https://foxglove.dev/blog/using-rosbridge-with-ros2" target="_blank">Using Rosbridge with ROS 2</a>.</p>
+
+    <hr/>
+
+    <p>Connection: <span id="status" style="font-weight: bold;">N/A</span></p>
+    <p><code>/my_topic</code> messages received: <ul id="messages" style="font-weight: bold;"></ul></p>
+    <p>Latest image:</p>
+    <img id="ros-image" style="max-width: 480px; border: 1px solid #ccc;" />
+
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+
+    <script type="text/javascript">
+        // Our JavaScript code will go here
+        // Create ros object to communicate over your Rosbridge connection
+        const ros = new ROSLIB.Ros({ url: "ws://localhost:9090" });
+
+        // When the Rosbridge server connects, fill the span with id "status" with "successful"
+        ros.on("connection", () => {
+        document.getElementById("status").innerHTML = "successful";
+        });
+
+        // When the Rosbridge server experiences an error, fill the "status" span with the returned error
+        ros.on("error", (error) => {
+        document.getElementById("status").innerHTML = `errored out (${error})`;
+        });
+
+        // When the Rosbridge server shuts down, fill the "status" span with "closed"
+        ros.on("close", () => {
+        document.getElementById("status").innerHTML = "closed";
+        });
+
+        const my_topic_listener = new ROSLIB.Topic({
+          ros,
+          name: "/kinova_color/image_color/compressed",
+          messageType: "sensor_msgs/msg/CompressedImage",
+        });
+
+        // When we receive a message on /my_topic, add its data as a list item to the "messages" ul
+        my_topic_listener.subscribe((message) => {
+          // Optionally clear messages list if you want it empty:
+          // document.getElementById("messages").innerHTML = "";
+
+          // Display the image
+          let imgType = "jpeg";
+          if (message.format && message.format.toLowerCase().includes("png")) {
+            imgType = "png";
+          } else if (message.format && message.format.toLowerCase().includes("jpeg")) {
+            imgType = "jpeg";
+          }
+          const img = document.getElementById("ros-image");
+          img.src = "data:image/" + imgType + ";base64," + message.data;
+        });
+
+    </script>
+  </body>
+</html>

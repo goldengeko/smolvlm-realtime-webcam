@@ -3,263 +3,455 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Interaction App</title>
+    <title>ROS Camera Interaction App</title>
     <style>
         body {
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
             padding: 20px;
-            background-color: #f0f0f0;
-        }
-        .controls, .io-areas {
             display: flex;
-            gap: 10px;
-            align-items: center;
-            background-color: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .io-areas {
             flex-direction: column;
-            align-items: stretch;
+            align-items: center;
+            min-height: 100vh;
         }
-        textarea {
-            width: 300px;
-            height: 80px;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
+        .container {
+            max-width: 800px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
-        #videoFeed {
-            width: 480px;
-            height: 360px;
-            border: 2px solid #333;
+        h1 {
+            font-size: 2rem;
+            color: #1a202c;
+            text-align: center;
+            margin: 0;
+        }
+        .image-container {
             background-color: #000;
             border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        #startButton {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            border-radius: 4px;
-            color: white;
+        #videoFeed {
+            width: 100%;
+            max-width: 480px;
+            height: 360px;
+            display: block;
         }
-        #startButton.start {
-            background-color: #28a745; /* Green */
+        .io-areas {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        #startButton.stop {
-            background-color: #dc3545; /* Red */
+        .io-areas div {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         label {
-            font-weight: bold;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2d3748;
         }
-        select {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+        }
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+        #responseText, #commandText {
+            background-color: #f7fafc;
+        }
+        #commandText.error {
+            border-color: #e53e3e;
+            background-color: #fef5f5;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            background-color: #fff;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        #startButton.start {
+            background-color: #38a169;
+            color: #fff;
+        }
+        #startButton.stop {
+            background-color: #e53e3e;
+            color: #fff;
+        }
+        #getAnswerButton {
+            background-color: #3182ce;
+            color: #fff;
+        }
+        #getAnswerButton:disabled, #startButton:disabled {
+            background-color: #a0aec0;
+            cursor: not-allowed;
         }
         .hidden {
             display: none;
         }
+        @media (max-width: 600px) {
+            .container {
+                padding: 0 10px;
+            }
+            h1 {
+                font-size: 1.5rem;
+            }
+            #videoFeed {
+                max-width: 100%;
+                height: auto;
+            }
+            .io-areas, .controls {
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 <body>
+    <div class="container">
+        <h1>ROS Camera Interaction App</h1>
 
-    <h1>Camera Interaction App</h1>
-
-    <video id="videoFeed" autoplay playsinline></video>
-    <canvas id="canvas" class="hidden"></canvas> <!-- For capturing frames -->
-
-    <div class="io-areas">
-        <div>
-            <label for="baseURL">Base API:</label><br>
-            <input id="baseURL" name="Instruction" value="http://localhost:8080"></textarea>
+        <div class="image-container">
+            <img id="videoFeed" alt="ROS Image Feed" />
         </div>
-        <div>
-            <label for="instructionText">Instruction:</label><br>
-            <textarea id="instructionText" style="height: 2em; width: 40em" name="Instruction"></textarea>
+        <canvas id="canvas" class="hidden"></canvas>
+
+        <div class="io-areas">
+            <div>
+                <label for="rosURL">Rosbridge URL</label>
+                <input id="rosURL" name="Rosbridge URL" value="ws://localhost:9090" />
+            </div>
+            <div>
+                <label for="baseURL">Base API URL</label>
+                <input id="baseURL" name="Base API" value="http://localhost:8080" />
+            </div>
+            <div>
+                <label for="instructionText">Instruction</label>
+                <textarea id="instructionText" name="Instruction" placeholder="Enter your instruction here..."></textarea>
+            </div>
+            <div>
+                <label for="responseText">API Response</label>
+                <textarea id="responseText" name="Response" readonly placeholder="Server response will appear here..."></textarea>
+            </div>
+            <div>
+                <label for="commandText">Sent Command</label>
+                <textarea id="commandText" name="Command" readonly placeholder="Robot command will appear here..."></textarea>
+            </div>
         </div>
-        <div>
-            <label for="responseText">Response:</label><br>
-            <textarea id="responseText" style="height: 2em; width: 40em" name="Response" readonly placeholder="Server response will appear here..."></textarea>
+
+        <div class="controls">
+            <button id="startButton" class="start">Start Image Feed</button>
+            <button id="getAnswerButton" disabled>Get Answer</button>
         </div>
     </div>
 
-    <div class="controls">
-        <label for="intervalSelect">Interval between 2 requests:</label>
-        <select id="intervalSelect" name="Interval between 2 requests">
-            <option value="100">100ms</option>
-            <option value="250">250ms</option>
-            <option value="500" selected>500ms</option>
-            <option value="1000">1s</option>
-            <option value="2000">2s</option>
-        </select>
-        <button id="startButton" class="start">Start</button>
-    </div>
-
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
     <script>
-        const video = document.getElementById('videoFeed');
+        const videoFeed = document.getElementById('videoFeed');
         const canvas = document.getElementById('canvas');
+        const rosURL = document.getElementById('rosURL');
         const baseURL = document.getElementById('baseURL');
         const instructionText = document.getElementById('instructionText');
         const responseText = document.getElementById('responseText');
-        const intervalSelect = document.getElementById('intervalSelect');
+        const commandText = document.getElementById('commandText');
         const startButton = document.getElementById('startButton');
+        const getAnswerButton = document.getElementById('getAnswerButton');
 
-        instructionText.value = "What do you see?"; // default instruction
+        instructionText.value = "Based on the scene, should the robot move forward, backward, turn left, turn right, or stop?"; // Updated instruction
 
-        let stream;
-        let intervalId;
-        let isProcessing = false;
+        let isImageFeedActive = false;
+        let imageTopic = null;
+        let cmdVelTopic = null;
+        let latestImageBase64 = null;
+        let ros = null;
 
-        // Returns response text (string)
-        async function sendChatCompletionRequest(instruction, imageBase64URL) {
-            const response = await fetch(`${baseURL.value}/v1/chat/completions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    max_tokens: 100,
-                    messages: [
-                        { role: 'user', content: [
-                            { type: 'text', text: instruction },
-                            { type: 'image_url', image_url: {
-                                url: imageBase64URL,
-                            } }
-                        ] },
-                    ]
-                })
+        // Initialize Rosbridge connection
+        function initRosbridge() {
+            ros = new ROSLIB.Ros({ url: rosURL.value });
+
+            ros.on("connection", () => {
+                responseText.value = "Connected to Rosbridge. Start the image feed to begin.";
+                getAnswerButton.disabled = false;
             });
-            if (!response.ok) {
-                const errorData = await response.text();
-                return `Server error: ${response.status} - ${errorData}`;
-            }
-            const data = await response.json();
-            return data.choices[0].message.content;
+
+            ros.on("error", (error) => {
+                responseText.value = `Rosbridge error: ${error}`;
+                commandText.value = "";
+                console.error("Rosbridge error:", error);
+                getAnswerButton.disabled = true;
+                handleStop();
+            });
+
+            ros.on("close", () => {
+                responseText.value = "Rosbridge connection closed.";
+                commandText.value = "";
+                getAnswerButton.disabled = true;
+                handleStop();
+            });
         }
 
-        // 1. Ask for camera permission on load
-        async function initCamera() {
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                video.srcObject = stream;
-                responseText.value = "Camera access granted. Ready to start.";
-            } catch (err) {
-                console.error("Error accessing camera:", err);
-                responseText.value = `Error accessing camera: ${err.name} - ${err.message}. Please ensure permissions are granted and you are on HTTPS or localhost.`;
-                alert(`Error accessing camera: ${err.name}. Make sure you've granted permission and are on HTTPS or localhost.`);
+        // Subscribe to the ROS image topic
+        function startImageFeed() {
+            imageTopic = new ROSLIB.Topic({
+                ros,
+                name: "/kinova_color/image_color/compressed",
+                messageType: "sensor_msgs/msg/CompressedImage",
+            });
+
+            imageTopic.subscribe((message) => {
+                let imgType = "jpeg";
+                if (message.format && message.format.toLowerCase().includes("png")) {
+                    imgType = "png";
+                } else if (message.format && message.format.toLowerCase().includes("jpeg")) {
+                    imgType = "jpeg";
+                }
+                const imageBase64URL = `data:image/${imgType};base64,${message.data}`;
+                videoFeed.src = imageBase64URL;
+                latestImageBase64 = imageBase64URL;
+            });
+
+            // Initialize publisher for /cmd_vel
+            cmdVelTopic = new ROSLIB.Topic({
+                ros,
+                name: "/cmd_vel",
+                messageType: "geometry_msgs/msg/Twist",
+            });
+        }
+
+        // Stop the image feed and publisher
+        function stopImageFeed() {
+            if (imageTopic) {
+                imageTopic.unsubscribe();
+                imageTopic = null;
+                videoFeed.src = "";
+                latestImageBase64 = null;
+            }
+            if (cmdVelTopic) {
+                cmdVelTopic.unadvertise();
+                cmdVelTopic = null;
             }
         }
 
-        function captureImage() {
-            if (!stream || !video.videoWidth) {
-                console.warn("Video stream not ready for capture.");
-                return null;
+        // Map API response to Twist command
+        function responseToTwist(response) {
+            console.log("Processing response:", response); // Debug log
+            const lowerResponse = response.toLowerCase().trim();
+            const twist = {
+                linear: { x: 0, y: 0, z: 0 },
+                angular: { x: 0, y: 0, z: 0 }
+            };
+
+            // Explicit command keywords with regex for robustness
+            if (/move\s*(forward|straight)/i.test(lowerResponse)) {
+                twist.linear.x = 0.5;
+                return { twist, command: "Move forward (linear.x = 0.5)" };
+            } else if (/move\s*(backward|back)/i.test(lowerResponse)) {
+                twist.linear.x = -0.5;
+                return { twist, command: "Move backward (linear.x = -0.5)" };
+            } else if (/turn\s*(left|to\s*the\s*left)/i.test(lowerResponse)) {
+                twist.angular.z = 0.5;
+                return { twist, command: "Turn left (angular.z = 0.5)" };
+            } else if (/turn\s*(right|to\s*the\s*right)/i.test(lowerResponse)) {
+                twist.angular.z = -0.5;
+                return { twist, command: "Turn right (angular.z = -0.5)" };
+            } else if (/stop|halt/i.test(lowerResponse)) {
+                return { twist, command: "Stop (linear.x = 0, angular.z = 0)" };
+            } else if (/human\s*figure|person/i.test(lowerResponse)) {
+                return { twist, command: "Stop (human figure detected, linear.x = 0, angular.z = 0)" };
+            } else {
+                console.log("No matching command found for:", lowerResponse); // Debug log
+                return { twist, command: "Unknown command: " + response };
             }
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL('image/jpeg', 0.8); // Use JPEG for smaller size, 0.8 quality
         }
 
+        // Publish Twist message to /cmd_vel
+        function publishCommand(twist, command) {
+            if (cmdVelTopic) {
+                cmdVelTopic.publish(twist);
+                commandText.value = command;
+                commandText.classList.remove('error');
+                if (command.startsWith("Unknown command")) {
+                    commandText.classList.add('error');
+                }
+            } else {
+                commandText.value = "Error: /cmd_vel topic not initialized.";
+                commandText.classList.add('error');
+            }
+        }
+
+        // Send a single inference request and process response
         async function sendData() {
-            if (!isProcessing) return; // Ensure we don't have overlapping requests if processing takes longer than interval
-
             const instruction = instructionText.value;
             const imageBase64URL = captureImage();
 
             if (!imageBase64URL) {
-                responseText.value = "Failed to capture image. Stream might not be active.";
-                // Optionally stop processing if image capture fails consistently
-                // handleStop();
+                responseText.value = "Failed to capture image. ROS topic might not be publishing.";
+                commandText.value = "";
+                commandText.classList.remove('error');
                 return;
             }
 
-            const payload = {
-                instruction: instruction,
-                imageBase64URL: imageBase64URL
-            };
+            responseText.value = "Sending request...";
+            getAnswerButton.disabled = true;
 
             try {
-                const response = await sendChatCompletionRequest(payload.instruction, payload.imageBase64URL);
+                const response = await sendChatCompletionRequest(instruction, imageBase64URL);
                 responseText.value = response;
+
+                // Map response to command and publish
+                const { twist, command } = responseToTwist(response);
+                publishCommand(twist, command);
             } catch (error) {
                 console.error('Error sending data:', error);
                 responseText.value = `Error: ${error.message}`;
+                commandText.value = "";
+                commandText.classList.remove('error');
+            } finally {
+                getAnswerButton.disabled = !ros.isConnected || !isImageFeedActive;
             }
         }
 
+        // Returns response text (string)
+        async function sendChatCompletionRequest(instruction, imageBase64URL) {
+            try {
+                const response = await fetch(`${baseURL.value}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        max_tokens: 100,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: [
+                                    { type: 'text', text: instruction },
+                                    { type: 'image_url', image_url: { url: imageBase64URL } }
+                                ]
+                            }
+                        ]
+                    })
+                });
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    return `Server error: ${response.status} - ${errorData}`;
+                }
+                const data = await response.json();
+                return data.choices[0].message.content;
+            } catch (error) {
+                return `API request error: ${error.message}`;
+            }
+        }
+
+        // Capture the latest image for inferencing
+        function captureImage() {
+            if (!latestImageBase64) {
+                console.warn("No image available from ROS topic.");
+                return null;
+            }
+            const img = new Image();
+            img.src = latestImageBase64;
+            canvas.width = videoFeed.width;
+            canvas.height = videoFeed.height;
+            const context = canvas.getContext('2d');
+            context.drawImage(img, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.8);
+        }
+
         function handleStart() {
-            if (!stream) {
-                responseText.value = "Camera not available. Cannot start.";
-                alert("Camera not available. Please grant permission first.");
+            if (!ros.isConnected) {
+                responseText.value = "Not connected to Rosbridge. Cannot start.";
+                commandText.value = "";
+                commandText.classList.remove('error');
+                alert("Not connected to Rosbridge. Ensure the Rosbridge server is running at " + rosURL.value);
                 return;
             }
-            isProcessing = true;
-            startButton.textContent = "Stop";
+            isImageFeedActive = true;
+            startButton.textContent = "Stop Image Feed";
             startButton.classList.remove('start');
             startButton.classList.add('stop');
 
             instructionText.disabled = true;
-            intervalSelect.disabled = true;
-
-            responseText.value = "Processing started...";
-
-            const intervalMs = parseInt(intervalSelect.value, 10);
-            
-            // Initial immediate call
-            sendData(); 
-            
-            // Then set interval
-            intervalId = setInterval(sendData, intervalMs);
+            startImageFeed();
+            responseText.value = "Image feed started. Click 'Get Answer' to send a request.";
+            commandText.value = "";
+            commandText.classList.remove('error');
+            getAnswerButton.disabled = false;
         }
 
         function handleStop() {
-            isProcessing = false;
-            if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
-            }
-            startButton.textContent = "Start";
+            isImageFeedActive = false;
+            startButton.textContent = "Start Image Feed";
             startButton.classList.remove('stop');
             startButton.classList.add('start');
 
             instructionText.disabled = false;
-            intervalSelect.disabled = false;
-            if (responseText.value.startsWith("Processing started...")) {
-                responseText.value = "Processing stopped.";
-            }
+            stopImageFeed();
+            responseText.value = "Image feed stopped.";
+            commandText.value = "";
+            commandText.classList.remove('error');
+            getAnswerButton.disabled = true;
         }
 
         startButton.addEventListener('click', () => {
-            if (isProcessing) {
+            if (isImageFeedActive) {
                 handleStop();
             } else {
                 handleStart();
             }
         });
 
-        // Initialize camera when the page loads
-        window.addEventListener('DOMContentLoaded', initCamera);
+        getAnswerButton.addEventListener('click', sendData);
 
-        // Optional: Stop stream when page is closed/navigated away to release camera
+        // Initialize Rosbridge on page load
+        window.addEventListener('DOMContentLoaded', initRosbridge);
+
+        // Clean up on page unload
         window.addEventListener('beforeunload', () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            if (intervalId) {
-                clearInterval(intervalId);
+            stopImageFeed();
+            if (ros) {
+                ros.close();
             }
         });
-
     </script>
 </body>
 </html>
